@@ -1,0 +1,26 @@
+[package]
+name = "poisson_reconstruction"
+repository = "https://github.com/ForesightMiningSoftwareCorporation/tdigest"
+version = "0.1.0"
+license = "Apache-2.0"
+description = "Screened Poisson Reconstruction algorithm in Rust"
+authors = ["Sébastien Crozet <sebcrozet@dimforge.com>"]
+readme = "README.md"
+keywords = ["surface", "reconstruction", "poisson", "implicit"]
+edition = "2021"
+
+[features]
+serde-serialize = [ "nalgebra/serde-serialize", "serde" ]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+rayon = "1"
+nalgebra = "^0.31"
+nalgebra-sparse = "0.8"
+parry3d-f64 = "0.11"
+itertools = "0.10"
+fnv = "1"
+
+[dev-dependencies]
+kiss3d = "0.35"
+ply-rs = "0.1"
