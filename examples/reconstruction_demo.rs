@@ -1,42 +1,72 @@
-use std::cell::RefCell;
-use std::io::BufRead;
-use std::path::Path;
-use std::rc::Rc;
-use kiss3d::window::Window;
-use kiss3d::light::Light;
-use poisson_reconstruction::{PoissonReconstruction, Real};
+use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
+use bevy::prelude::*;
+use bevy::render::mesh::PrimitiveTopology;
 use nalgebra::{Point3, Vector3};
 use ply_rs::{parser, ply};
+use poisson_reconstruction::{PoissonReconstruction, Real};
+use std::io::BufRead;
+use std::path::Path;
 use std::str::FromStr;
-use kiss3d::camera::ArcBall;
 
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugin(WireframePlugin)
+        .add_startup_system(setup_camera_and_light)
+        .add_startup_system(setup_scene)
+        .run();
+}
 
-pub fn main() {
-    let mut window = Window::new("Kiss3d: cube");
-
+fn setup_scene(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
     let point_cloud = parse_file("./assets/xiaojiejie2_pcd.ply", true);
     let surface = reconstruct_surface(&point_cloud);
-    let mesh_points: Vec<_> = surface.iter().map(|pt| kiss3d::nalgebra::Point3::new(pt.x as f32, -pt.y as f32, pt.z as f32)).collect();
-
-    // NOTE: kiss3d only support u16 index buffers, so we split into several meshes if
-    // we have too many vertices.
-    dbg!("Creating visuals");
-    for mesh_part in mesh_points.chunks((u16::MAX as usize / 3) * 3) {
-        let mesh_faces = (0..mesh_part.len() as u16 / 3).map(|i| kiss3d::nalgebra::Point3::new(i * 3, i * 3 + 1, i * 3 + 2))
-            .collect();
-        let mesh = kiss3d::resource::Mesh::new(mesh_part.to_vec(), mesh_faces, None, None, false);
-        let mut c = window.add_mesh(Rc::new(RefCell::new(mesh)), kiss3d::nalgebra::Vector3::repeat(1.0));
-        c.set_color(1.0, 1.0, 0.0);
-        c.set_lines_width(2.0);
-        c.set_lines_color(Some(kiss3d::nalgebra::Point3::new(0.0, 0.0, 0.0)));
-    }
+    spawn_mesh(&mut commands, &mut meshes, &mut materials, surface);
     dbg!("Done");
+}
 
-    let mut camera = ArcBall::new([-100.0, 25.0, -100.0].into(), [0.0, 0.0, 0.0].into());
-    window.set_light(Light::StickToCamera);
+fn setup_camera_and_light(mut commands: Commands) {
+    commands.spawn(PointLightBundle {
+        point_light: PointLight {
+            intensity: 900000.0,
+            range: 1000.,
+            ..default()
+        },
+        transform: Transform::from_xyz(-100.0, 50.0, -100.0),
+        ..default()
+    });
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(-100.0, 25.0, -100.0)
+            .looking_at(Vec3::new(0., 0., 0.), Vec3::Y),
+        ..default()
+    });
+}
 
-    while window.render_with_camera(&mut camera) {
-    }
+fn spawn_mesh(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    points: Vec<Point3<f64>>,
+) {
+    // Create the bevy mesh.
+    let vertices: Vec<_> = points
+        .iter()
+        .map(|pt| [pt.x as f32, -pt.y as f32, pt.z as f32])
+        .collect();
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
+    mesh.compute_flat_normals();
+
+    commands
+        .spawn(PbrBundle {
+            mesh: meshes.add(mesh),
+            material: materials.add(Color::rgb(1.0, 1.0, 0.0).into()),
+            ..default()
+        })
+        .insert(Wireframe);
 }
 
 #[derive(Default)]
@@ -76,7 +106,11 @@ fn parse_file(path: impl AsRef<Path>, ply: bool) -> Vec<VertexWithNormal> {
         for (_ignore_key, element) in &header.elements {
             // we could also just parse them in sequence, but the file format might change
             match element.name.as_ref() {
-                "vertex" => { vertex_list = vertex_parser.read_payload_for_element(&mut f, &element, &header).unwrap(); },
+                "vertex" => {
+                    vertex_list = vertex_parser
+                        .read_payload_for_element(&mut f, &element, &header)
+                        .unwrap();
+                }
                 _ => {}
             }
         }
@@ -85,7 +119,10 @@ fn parse_file(path: impl AsRef<Path>, ply: bool) -> Vec<VertexWithNormal> {
         let mut result = vec![];
         for line in f.lines() {
             if let Ok(line) = line {
-                let values: Vec<_> = line.split_whitespace().map(|elt| f64::from_str(elt).unwrap()).collect();
+                let values: Vec<_> = line
+                    .split_whitespace()
+                    .map(|elt| f64::from_str(elt).unwrap())
+                    .collect();
                 result.push(VertexWithNormal {
                     pos: Point3::new(values[0], values[1], values[2]),
                     normal: Vector3::new(values[3], values[4], values[5]),
@@ -101,9 +138,7 @@ fn reconstruct_surface(vertices: &[VertexWithNormal]) -> Vec<Point3<Real>> {
     let normals: Vec<_> = vertices.iter().map(|v| v.normal).collect();
 
     dbg!("Running poisson.");
-    let poisson = PoissonReconstruction::from_points_and_normals(
-        &points, &normals, 0.0, 6, 6, 10
-    );
+    let poisson = PoissonReconstruction::from_points_and_normals(&points, &normals, 0.0, 7, 7, 10);
     dbg!("Extracting vertices.");
     poisson.reconstruct_mesh()
 }

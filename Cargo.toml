@@ -1,6 +1,6 @@
 [package]
 name = "poisson_reconstruction"
-repository = "https://github.com/ForesightMiningSoftwareCorporation/tdigest"
+repository = "https://github.com/ForesightMiningSoftwareCorporation/PoissonReconstruction"
 version = "0.1.0"
 license = "Apache-2.0"
 description = "Screened Poisson Reconstruction algorithm in Rust"
@@ -22,5 +22,5 @@ itertools = "0.10"
 fnv = "1"
 
 [dev-dependencies]
-kiss3d = "0.35"
+bevy = "0.9"
 ply-rs = "0.1"
