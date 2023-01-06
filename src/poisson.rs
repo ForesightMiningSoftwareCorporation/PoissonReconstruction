@@ -124,6 +124,13 @@ impl PoissonReconstruction {
         self.layers.last().unwrap().cells_qbvh.root_aabb()
     }
 
+    /// Does the given AABB intersect any of the smallest grid cells of the reconstruction?
+    pub fn leaf_cells_intersect_aabb(&self, aabb: &Aabb) -> bool {
+        let mut intersections = vec![];
+        self.layers.last().unwrap().cells_qbvh.intersect_aabb(aabb, &mut intersections);
+        !intersections.is_empty()
+    }
+
     /// Evaluates the value of the implicit function at the given 3D point.
     ///
     /// In order to get a meaningful value, the point must be located inside of [`Self::aabb`].
