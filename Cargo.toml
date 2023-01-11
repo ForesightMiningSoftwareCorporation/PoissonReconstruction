@@ -17,7 +17,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 rayon = "1"
 nalgebra = "^0.31"
 nalgebra-sparse = "0.8"
-parry3d-f64 = "0.11"
+parry3d-f64 = "0.12"
 itertools = "0.10"
 fnv = "1"
 
