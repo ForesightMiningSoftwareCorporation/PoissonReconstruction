@@ -1,4 +1,5 @@
 use crate::hgrid::HGrid;
+use crate::marching_cubes::march_cube;
 use crate::poisson_layer::PoissonLayer;
 use crate::poisson_vector_field::PoissonVectorField;
 use crate::polynomial::{eval_bspline, eval_bspline_diff};
@@ -8,7 +9,6 @@ use parry::bounding_volume::{Aabb, BoundingVolume};
 use parry::partitioning::IndexedData;
 use std::collections::HashMap;
 use std::ops::{AddAssign, Mul};
-use crate::marching_cubes::march_cube;
 
 /// An implicit surface reconstructed with the Screened Poisson reconstruction algorithm.
 #[derive(Clone)]
@@ -64,7 +64,11 @@ impl PoissonReconstruction {
         max_depth: usize,
         max_relaxation_iters: usize,
     ) -> Self {
-        assert_eq!(points.len(), normals.len(), "Exactly one normal per point must be provided.");
+        assert_eq!(
+            points.len(),
+            normals.len(),
+            "Exactly one normal per point must be provided."
+        );
         assert!(density_estimation_depth <= max_depth);
         let mut root_aabb = Aabb::from_points(points);
         let max_extent = root_aabb.extents().max();
@@ -127,7 +131,11 @@ impl PoissonReconstruction {
     /// Does the given AABB intersect any of the smallest grid cells of the reconstruction?
     pub fn leaf_cells_intersect_aabb(&self, aabb: &Aabb) -> bool {
         let mut intersections = vec![];
-        self.layers.last().unwrap().cells_qbvh.intersect_aabb(aabb, &mut intersections);
+        self.layers
+            .last()
+            .unwrap()
+            .cells_qbvh
+            .intersect_aabb(aabb, &mut intersections);
         !intersections.is_empty()
     }
 

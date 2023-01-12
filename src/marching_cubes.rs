@@ -1,7 +1,7 @@
 //! Basic marching-cubes implementation.
 
-use na::Point3;
 use crate::Real;
+use na::Point3;
 
 /* The cube vertex and edge indices for base rotation:
  *

@@ -2,7 +2,10 @@ use crate::conjugate_gradient::solve_conjugate_gradient;
 use crate::hgrid::HGrid;
 use crate::poisson_vector_field::PoissonVectorField;
 use crate::polynomial::TriQuadraticBspline;
-use crate::{poisson::{self, CellWithId}, polynomial, Real};
+use crate::{
+    poisson::{self, CellWithId},
+    polynomial, Real,
+};
 use na::{vector, DVector, Point3, Vector3};
 use nalgebra_sparse::{CooMatrix, CscMatrix};
 use parry::bounding_volume::Aabb;
