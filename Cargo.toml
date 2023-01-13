@@ -1,7 +1,7 @@
 [package]
 name = "poisson_reconstruction"
 repository = "https://github.com/ForesightMiningSoftwareCorporation/PoissonReconstruction"
-version = "0.1.0"
+version = "0.1.1"
 license = "Apache-2.0"
 description = "Screened Poisson Reconstruction algorithm in Rust"
 authors = ["Sébastien Crozet <sebcrozet@dimforge.com>"]

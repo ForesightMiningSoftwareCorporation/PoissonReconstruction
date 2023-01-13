@@ -1,6 +1,0 @@
-[unstable]
-registry-auth = true
-[registries.public]
-index = "https://github.com/rust-lang/crates.io.git"
-[net]
-git-fetch-with-cli = true
