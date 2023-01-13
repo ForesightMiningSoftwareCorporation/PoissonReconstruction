@@ -12,5 +12,5 @@ jobs:
       github-token: ${{ secrets.GITHUB_TOKEN }}
       public-registry-token: ${{ secrets.CARGO_PUBLIC_REGISTRY_TOKEN }}
       discord-webhook: ${{ secrets.DISCORD_WEBHOOK }}
-      approval_app: ${{ secrets.ACTIONS_APPROVERS_APP_ID }}
+      approval_app_id: ${{ secrets.ACTIONS_APPROVERS_APP_ID }}
       approval_app_private_key: ${{ secrets.ACTIONS_APPROVERS_APP_PRIVATE_KEY }}
