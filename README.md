@@ -1,3 +1,4 @@
+[![.github/workflows/release.yml](https://github.com/ForesightMiningSoftwareCorporation/PoissonReconstruction/actions/workflows/release.yml/badge.svg)](https://github.com/ForesightMiningSoftwareCorporation/PoissonReconstruction/actions/workflows/release.yml)
 # PoissonReconstruction
 This is a Rust implementation of the [Screened poisson reconstruction](https://www.cs.jhu.edu/~misha/MyPapers/ToG13.pdf)
 by Kazhdan and Hoppe.
