@@ -8,7 +8,7 @@ jobs:
     uses: ForesightMiningSoftwareCorporation/github/.github/workflows/publish-rust-crate.yml@v1.0.0
     with:
       public-registry: true
-      required_packages: libasound2-dev
+      required_packages: libasound2-dev libudev-dev pkg-config
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}
       public-registry-token: ${{ secrets.CARGO_PUBLIC_REGISTRY_TOKEN }}

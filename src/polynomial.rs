@@ -380,7 +380,7 @@ impl<const N: usize> Add<Polynomial<N>> for Polynomial<N> {
 
 #[cfg(test)]
 mod test {
-    use crate::test_surface_reconstruction::polynomial::Polynomial;
+    use crate::polynomial::Polynomial;
 
     #[test]
     fn poly_eval() {
