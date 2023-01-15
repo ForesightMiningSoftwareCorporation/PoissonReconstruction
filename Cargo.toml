@@ -1,7 +1,7 @@
 [package]
 name = "poisson_reconstruction"
 repository = "https://github.com/ForesightMiningSoftwareCorporation/PoissonReconstruction"
-version = "0.1.1"
+version = "0.2.0"
 license = "Apache-2.0"
 description = "Screened Poisson Reconstruction algorithm in Rust"
 authors = ["Sébastien Crozet <sebcrozet@dimforge.com>"]
@@ -15,9 +15,9 @@ serde-serialize = [ "nalgebra/serde-serialize", "serde" ]
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
 rayon = "1"
-nalgebra = "^0.31"
-nalgebra-sparse = "0.8"
-parry3d-f64 = "0.12"
+nalgebra = "0.32"
+nalgebra-sparse = "0.9"
+parry3d-f64 = "0.13"
 itertools = "0.10"
 fnv = "1"
 

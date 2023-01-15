@@ -138,7 +138,7 @@ fn reconstruct_surface(vertices: &[VertexWithNormal]) -> Vec<Point3<Real>> {
     let normals: Vec<_> = vertices.iter().map(|v| v.normal).collect();
 
     dbg!("Running poisson.");
-    let poisson = PoissonReconstruction::from_points_and_normals(&points, &normals, 0.0, 7, 7, 10);
+    let poisson = PoissonReconstruction::from_points_and_normals(&points, &normals, 0.0, 6, 6, 10);
     dbg!("Extracting vertices.");
     poisson.reconstruct_mesh()
 }
