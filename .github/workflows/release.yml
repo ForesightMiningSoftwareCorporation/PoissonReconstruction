@@ -1,17 +1,22 @@
+name: Release Pipeline
+
 on:
+  pull_request:
   push:
-    branch:
+    branches:
       - main
+  workflow_dispatch:
+    inputs:
+      publish:
+        type: boolean
+        required: false
+        description: Trigger with publish
 
 jobs:
-  publish-private-create:
-    uses: ForesightMiningSoftwareCorporation/github/.github/workflows/publish-rust-crate.yml@v1.0.0
+  publish:
+    uses: ForesightMiningSoftwareCorporation/github/.github/workflows/rust-build.yml@v1.1.0
     with:
-      public-registry: true
-      required_packages: libasound2-dev libudev-dev pkg-config
-    secrets:
-      github-token: ${{ secrets.GITHUB_TOKEN }}
-      public-registry-token: ${{ secrets.CARGO_PUBLIC_REGISTRY_TOKEN }}
-      discord-webhook: ${{ secrets.DISCORD_WEBHOOK }}
-      approval_app_id: ${{ secrets.ACTIONS_APPROVERS_APP_ID }}
-      approval_app_private_key: ${{ secrets.ACTIONS_APPROVERS_APP_PRIVATE_KEY }}
+      skip-test: ${{ github.event_name == 'push' && 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+      publish: ${{ (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)) && 'true' || 'false' }}
+      publish_public_registry: true
+    secrets: inherit
