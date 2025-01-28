@@ -1,7 +1,7 @@
 [package]
 name = "poisson_reconstruction"
 repository = "https://github.com/ForesightMiningSoftwareCorporation/PoissonReconstruction"
-version = "0.3.0"
+version = "0.3.1"
 license = "MIT OR Apache-2.0"
 description = "Screened Poisson Reconstruction algorithm in Rust"
 authors = ["Sébastien Crozet <sebcrozet@dimforge.com>"]
@@ -22,5 +22,6 @@ itertools = "0.10"
 fnv = "1"
 
 [dev-dependencies]
-bevy = "0.9"
+bevy = "0.15"
+bevy_panorbit_camera = "0.22"
 ply-rs = "0.1"
