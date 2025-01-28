@@ -2,6 +2,52 @@
 
 use crate::Real;
 use na::Point3;
+use parry::bounding_volume::Aabb;
+use parry::shape::{TriMesh, TriMeshFlags};
+use parry::utils::SortedPair;
+use std::collections::HashMap;
+
+type MarchingCubesCellKey = [i32; 3];
+
+/// Represents an index and vertex buffer of a mesh for incremental construction.
+#[derive(Default)]
+pub struct MeshBuffers {
+    vertices: Vec<Point3<f64>>,
+    indices: Vec<u32>,
+    edge_to_index: HashMap<SortedPair<MarchingCubesCellKey>, u32>,
+}
+
+impl MeshBuffers {
+    /// The mesh’s index buffer.
+    pub fn indices(&self) -> &[u32] {
+        &self.indices
+    }
+
+    /// The mesh’s vertex buffer.
+    pub fn vertices(&self) -> &[Point3<f64>] {
+        &self.vertices
+    }
+
+    /// Return the results as a soup of triangle, with duplicated vertices.
+    pub fn result_as_triangle_soup(&self) -> Vec<Point3<f64>> {
+        self.indices
+            .iter()
+            .map(|i| self.vertices[*i as usize])
+            .collect()
+    }
+
+    /// Constructs a `TriMesh` from this buffer.
+    ///
+    /// The result is `None` if the index buffer of `self` is empty.
+    pub fn result(&self, flags: TriMeshFlags) -> Option<TriMesh> {
+        let idx: Vec<_> = self
+            .indices
+            .chunks_exact(3)
+            .map(|i| [i[0], i[1], i[2]])
+            .collect();
+        (!idx.is_empty()).then(|| TriMesh::with_flags(self.vertices.clone(), idx, flags))
+    }
+}
 
 /* The cube vertex and edge indices for base rotation:
  *
@@ -102,6 +148,69 @@ pub fn march_cube(
         let vert = mins + (maxs - mins).component_mul(&normalized_vert.coords);
         out_triangles.push(vert);
     }
+}
+
+// The triangle table gives us the mapping from index to actual
+// triangles to return for this configuration
+// v0 assumed at 0.0, 0.0, 0.0 & v6 at 1.0, 1.0, 1.0
+pub(crate) fn march_cube_idx(
+    aabb: &Aabb,
+    corner_values: &[f64; 8],
+    // Grid coordinates of v0.
+    first_corner_cell_key: [i32; 3],
+    iso_value: f64,
+    out: &mut MeshBuffers,
+) {
+    // Compute the index for MC_TRI_TABLE
+    let mut index = 0;
+    let old_indices_len = out.indices.len();
+
+    for (v, value) in corner_values.iter().enumerate() {
+        if *value < iso_value {
+            index |= 1 << v;
+        }
+    }
+
+    for t in MC_TRI_TABLE[index].iter().take_while(|t| **t >= 0) {
+        let v_idx = *t as usize;
+        let [v0, v1] = EDGE_VERTICES[v_idx];
+
+        let local_corner_0 = INDEX_TO_VERTEX[v0 as usize];
+        let local_corner_1 = INDEX_TO_VERTEX[v1 as usize];
+
+        let eid0 = [
+            first_corner_cell_key[0] + local_corner_0[0] as i32,
+            first_corner_cell_key[1] + local_corner_0[1] as i32,
+            first_corner_cell_key[2] + local_corner_0[2] as i32,
+        ];
+        let eid1 = [
+            first_corner_cell_key[0] + local_corner_1[0] as i32,
+            first_corner_cell_key[1] + local_corner_1[1] as i32,
+            first_corner_cell_key[2] + local_corner_1[2] as i32,
+        ];
+
+        let edge_key = SortedPair::new(eid0, eid1);
+        let vid = *out.edge_to_index.entry(edge_key).or_insert_with(|| {
+            // The normalized_vert will have components
+            // in 0..1.
+            let normalized_vert = lerp_vertices(
+                &INDEX_TO_VERTEX[v0 as usize],
+                &INDEX_TO_VERTEX[v1 as usize],
+                corner_values[v0 as usize],
+                corner_values[v1 as usize],
+                iso_value,
+            );
+
+            // Convert the normalized_vert into an Aabb vert.
+            let vertex = aabb.mins + aabb.extents().component_mul(&normalized_vert.coords);
+            out.vertices.push(vertex);
+            (out.vertices.len() - 1) as u32
+        });
+
+        out.indices.push(vid);
+    }
+
+    out.indices[old_indices_len..].reverse();
 }
 
 /// Interpolates linearly between two weighted integer points.

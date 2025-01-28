@@ -22,5 +22,6 @@ itertools = "0.10"
 fnv = "1"
 
 [dev-dependencies]
-bevy = "0.9"
+bevy = "0.15"
+bevy_panorbit_camera = "0.22"
 ply-rs = "0.1"

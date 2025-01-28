@@ -1,5 +1,5 @@
 use crate::hgrid::HGrid;
-use crate::marching_cubes::march_cube;
+use crate::marching_cubes::{march_cube_idx, MeshBuffers};
 use crate::poisson_layer::PoissonLayer;
 use crate::poisson_vector_field::PoissonVectorField;
 use crate::polynomial::{eval_bspline, eval_bspline_diff};
@@ -7,6 +7,7 @@ use crate::Real;
 use na::{vector, Point3, Vector3};
 use parry::bounding_volume::{Aabb, BoundingVolume};
 use parry::partitioning::IndexedData;
+use parry::shape::{TriMesh, TriMeshFlags};
 use std::collections::HashMap;
 use std::ops::{AddAssign, Mul};
 
@@ -167,23 +168,83 @@ impl PoissonReconstruction {
 
     /// Reconstructs a mesh from this implicit function using a simple marching-cubes, extracting
     /// the isosurface at 0.
+    #[deprecated = "use `reconstruct_mesh_buffers` or `reconstruct_trimesh` instead"]
     pub fn reconstruct_mesh(&self) -> Vec<Point3<Real>> {
-        let mut vertices = vec![];
+        self.reconstruct_mesh_buffers().result_as_triangle_soup()
+    }
+
+    /// Reconstructs a `TriMesh` from this implicit function using a simple marching-cubes, extracting
+    /// the isosurface at 0.
+    pub fn reconstruct_trimesh(&self, flags: TriMeshFlags) -> Option<TriMesh> {
+        self.reconstruct_mesh_buffers().result(flags)
+    }
+
+    /// Reconstructs a mesh from this implicit function using a simple marching-cubes, extracting
+    /// the isosurface at 0.
+    pub fn reconstruct_mesh_buffers(&self) -> MeshBuffers {
+        let mut result = MeshBuffers::default();
+        let mut visited = HashMap::new();
 
         if let Some(last_layer) = self.layers.last() {
-            for cell in last_layer.cells_qbvh.raw_proxies() {
-                let aabb = last_layer.cells_qbvh.node_aabb(cell.node).unwrap();
+            // Check all the existing leaves.
+            let mut eval_cell = |key: Point3<i64>, visited: &mut HashMap<Point3<i64>, bool>| {
+                let cell_center = last_layer.grid.cell_center(&key);
+                let cell_width = Vector3::repeat(last_layer.grid.cell_width() / 2.0);
+                let aabb = Aabb::from_half_extents(cell_center, cell_width);
                 let mut vertex_values = [0.0; 8];
 
                 for (pt, val) in aabb.vertices().iter().zip(vertex_values.iter_mut()) {
                     *val = self.eval(pt);
                 }
 
-                march_cube(&aabb.mins, &aabb.maxs, &vertex_values, 0.0, &mut vertices);
+                let len_before = result.indices().len();
+                march_cube_idx(
+                    &aabb,
+                    &vertex_values,
+                    key.cast::<i32>().into(),
+                    0.0,
+                    &mut result,
+                );
+                let has_sign_change = result.indices().len() != len_before;
+                visited.insert(key, has_sign_change);
+                has_sign_change
+            };
+
+            for cell in last_layer.cells_qbvh.raw_proxies() {
+                // let aabb = last_layer.cells_qbvh.node_aabb(cell.node).unwrap();
+                eval_cell(cell.data.cell, &mut visited);
+            }
+
+            // Checking only the leaves isn’t enough, isosurfaces might escape leaves through levels
+            // at a coarser level. So we also check adjacent leaves that experienced a sign change.
+            // PERF: instead of traversing ALL the adjacent leaves, only traverse the ones adjacent
+            //       to an edge that actually experienced a sign change.
+            // PERF: don’t re-evaluate vertices that were already evaluated.
+            let mut stack: Vec<_> = visited
+                .iter()
+                .filter(|(_key, sign_change)| **sign_change)
+                .map(|e| *e.0)
+                .collect();
+
+            while let Some(cell) = stack.pop() {
+                for i in -1..=1 {
+                    for j in -1..=1 {
+                        for k in -1..=1 {
+                            let new_cell = cell + Vector3::new(i, j, k);
+
+                            if !visited.contains_key(&new_cell) {
+                                let has_sign_change = eval_cell(new_cell, &mut visited);
+                                if has_sign_change {
+                                    stack.push(new_cell);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        vertices
+        result
     }
 }
 

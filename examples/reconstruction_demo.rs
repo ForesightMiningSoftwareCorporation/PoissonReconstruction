@@ -1,8 +1,11 @@
+use bevy::asset::RenderAssetUsages;
 use bevy::pbr::wireframe::{Wireframe, WireframePlugin};
 use bevy::prelude::*;
-use bevy::render::mesh::PrimitiveTopology;
+use bevy::render::mesh::{Indices, PrimitiveTopology};
+use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 use nalgebra::{Point3, Vector3};
 use ply_rs::{parser, ply};
+use poisson_reconstruction::marching_cubes::MeshBuffers;
 use poisson_reconstruction::{PoissonReconstruction, Real};
 use std::io::BufRead;
 use std::path::Path;
@@ -10,10 +13,10 @@ use std::str::FromStr;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(WireframePlugin)
-        .add_startup_system(setup_camera_and_light)
-        .add_startup_system(setup_scene)
+        .add_plugins((DefaultPlugins, PanOrbitCameraPlugin))
+        .add_plugins(WireframePlugin)
+        .add_systems(Startup, setup_camera_and_light)
+        .add_systems(Startup, setup_scene)
         .run();
 }
 
@@ -38,32 +41,40 @@ fn setup_camera_and_light(mut commands: Commands) {
         transform: Transform::from_xyz(-100.0, 50.0, -100.0),
         ..default()
     });
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-100.0, 25.0, -100.0)
-            .looking_at(Vec3::new(0., 0., 0.), Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3dBundle {
+            transform: Transform::from_xyz(-100.0, 25.0, -100.0)
+                .looking_at(Vec3::new(0., 0., 0.), Vec3::Y),
+            ..default()
+        },
+        PanOrbitCamera::default(),
+    ));
 }
 
 fn spawn_mesh(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-    points: Vec<Point3<f64>>,
+    points: MeshBuffers,
 ) {
     // Create the bevy mesh.
     let vertices: Vec<_> = points
+        .vertices()
         .iter()
-        .map(|pt| [pt.x as f32, -pt.y as f32, pt.z as f32])
+        .map(|pt| [pt.x as f32, pt.y as f32, pt.z as f32])
         .collect();
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices);
-    mesh.compute_flat_normals();
+    mesh.insert_indices(Indices::U32(points.indices().to_vec()));
 
     commands
         .spawn(PbrBundle {
-            mesh: meshes.add(mesh),
-            material: materials.add(Color::rgb(1.0, 1.0, 0.0).into()),
+            mesh: Mesh3d(meshes.add(mesh)),
+            material: MeshMaterial3d(materials.add(Color::srgb(0.0, 1.0, 0.0))),
+            transform: Transform::from_rotation(Quat::from_rotation_x(180.0f32.to_radians())),
             ..default()
         })
         .insert(Wireframe);
@@ -133,12 +144,12 @@ fn parse_file(path: impl AsRef<Path>, ply: bool) -> Vec<VertexWithNormal> {
     }
 }
 
-fn reconstruct_surface(vertices: &[VertexWithNormal]) -> Vec<Point3<Real>> {
+fn reconstruct_surface(vertices: &[VertexWithNormal]) -> MeshBuffers {
     let points: Vec<_> = vertices.iter().map(|v| v.pos).collect();
     let normals: Vec<_> = vertices.iter().map(|v| v.normal).collect();
 
     dbg!("Running poisson.");
     let poisson = PoissonReconstruction::from_points_and_normals(&points, &normals, 0.0, 6, 6, 10);
     dbg!("Extracting vertices.");
-    poisson.reconstruct_mesh()
+    poisson.reconstruct_mesh_buffers()
 }
